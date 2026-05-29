@@ -19,11 +19,18 @@ mkdir -p data .run
 echo "→ building server (first run compiles dependencies; later runs are fast)…"
 go build -o .run/server .
 
+# Patch conf/app.conf to bind to loopback for this run, restore immediately after launch.
+cp conf/app.conf conf/app.conf.bak
+trap 'mv conf/app.conf.bak conf/app.conf' EXIT INT TERM
+sed -i '' 's/^httpport/httpaddr = 127.0.0.1\nhttpport/' conf/app.conf
+
 echo "→ starting on http://127.0.0.1:${PORT} (fresh database)…"
 .run/server > .run/server.log 2>&1 &
 echo $! > .run/server.pid
 
 if curl --retry 120 --retry-delay 1 --retry-connrefused -s -o /dev/null "http://127.0.0.1:${PORT}/api/get-account"; then
+  mv conf/app.conf.bak conf/app.conf
+  trap - EXIT INT TERM
   echo "→ ready: http://127.0.0.1:${PORT}  (API base: http://127.0.0.1:${PORT}/api)"
 else
   echo "✗ server did not become ready — see .run/server.log" >&2
