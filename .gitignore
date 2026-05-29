@@ -36,3 +36,11 @@ server
 # include helm-chart
 !manifests/casdoor
 niro/credentials.yaml
+
+# local run artifacts
+.run/
+data/
+logs/
+*.db
+*.db-shm
+*.db-wal
