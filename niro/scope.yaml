@@ -65,4 +65,5 @@
 #   # Allow an internal CIDR.
 #   - target: "10.0.42.0/24:443"
 
-targets: []
+targets:
+  - target: "localhost:8000"
