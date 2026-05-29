@@ -1,0 +1,887 @@
+From f8d619343779fcfc6600afa6512d8f3c8891ca33 Mon Sep 17 00:00:00 2001
+From: Yang Luo <hsluoyz@gmail.com>
+Date: Sat, 21 Mar 2026 20:06:06 +0800
+Subject: [PATCH] feat: add key list/edit pages (#5285)
+
+---
+ controllers/key.go            | 115 +++++++++++++
+ object/key.go                 | 116 +++++++++++++
+ object/ormer.go               |   5 +
+ routers/router.go             |   4 +
+ web/src/App.js                |   6 +-
+ web/src/KeyEditPage.js        | 296 ++++++++++++++++++++++++++++++++++
+ web/src/KeyListPage.js        | 166 +++++++++++++++++++
+ web/src/ManagementPage.js     |   5 +
+ web/src/backend/KeyBackend.js |  47 ++++++
+ 9 files changed, 758 insertions(+), 2 deletions(-)
+ create mode 100644 controllers/key.go
+ create mode 100644 object/key.go
+ create mode 100644 web/src/KeyEditPage.js
+ create mode 100644 web/src/KeyListPage.js
+ create mode 100644 web/src/backend/KeyBackend.js
+
+diff --git a/controllers/key.go b/controllers/key.go
+new file mode 100644
+index 00000000..b94d485e
+--- /dev/null
++++ b/controllers/key.go
+@@ -0,0 +1,115 @@
++// Copyright 2026 The Casdoor Authors. All Rights Reserved.
++//
++// Licensed under the Apache License, Version 2.0 (the "License");
++// you may not use this file except in compliance with the License.
++// You may obtain a copy of the License at
++//
++//      http://www.apache.org/licenses/LICENSE-2.0
++//
++// Unless required by applicable law or agreed to in writing, software
++// distributed under the License is distributed on an "AS IS" BASIS,
++// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++// See the License for the specific language governing permissions and
++// limitations under the License.
++
++package controllers
++
++import (
++	"encoding/json"
++
++	"github.com/beego/beego/v2/core/utils/pagination"
++	"github.com/casdoor/casdoor/object"
++	"github.com/casdoor/casdoor/util"
++)
++
++// GetKeys
++// @Title GetKeys
++// @Tag Key API
++// @Description get keys
++// @Param   owner     query    string  true        "The owner of keys"
++// @Success 200 {array} object.Key The Response object
++// @router /get-keys [get]
++func (c *ApiController) GetKeys() {
++	owner := c.Ctx.Input.Query("owner")
++	limit := c.Ctx.Input.Query("pageSize")
++	page := c.Ctx.Input.Query("p")
++	sortField := c.Ctx.Input.Query("sortField")
++	sortOrder := c.Ctx.Input.Query("sortOrder")
++
++	if limit == "" || page == "" {
++		keys, err := object.GetKeys(owner)
++		if err != nil {
++			c.ResponseError(err.Error())
++			return
++		}
++		for _, k := range keys {
++			if k != nil {
++				k.AccessSecret = "***"
++			}
++		}
++
++		c.ResponseOk(keys)
++	} else {
++		limit := util.ParseInt(limit)
++		count, err := object.GetKeyCount(owner)
++		if err != nil {
++			c.ResponseError(err.Error())
++			return
++		}
++
++		paginator := pagination.NewPaginator(c.Ctx.Request, limit, count)
++		keys, err := object.GetPaginationKeys(owner, paginator.Offset(), limit, sortField, sortOrder)
++		if err != nil {
++			c.ResponseError(err.Error())
++			return
++		}
++		for _, k := range keys {
++			if k != nil {
++				k.AccessSecret = "***"
++			}
++		}
++
++		c.ResponseOk(keys, paginator.Nums())
++	}
++}
++
++// GetKey
++// @Title GetKey
++// @Tag Key API
++// @Description get key
++// @Param   id     query    string  true        "The id ( owner/name ) of the key"
++// @Success 200 {object} object.Key The Response object
++// @router /get-key [get]
++func (c *ApiController) GetKey() {
++	id := c.Ctx.Input.Query("id")
++
++	key, err := object.GetKey(id)
++	if err != nil {
++		c.ResponseError(err.Error())
++		return
++	}
++
++	c.ResponseOk(key)
++}
++
++// UpdateKey
++// @Title UpdateKey
++// @Tag Key API
++// @Description update key
++// @Param   id     query    string  true        "The id ( owner/name ) of the key"
++// @Param   body    body   object.Key  true        "The details of the key"
++// @Success 200 {object} controllers.Response The Response object
++// @router /update-key [post]
++func (c *ApiController) UpdateKey() {
++	id := c.Ctx.Input.Query("id")
++
++	var key object.Key
++	err := json.Unmarshal(c.Ctx.Input.RequestBody, &key)
++	if err != nil {
++		c.ResponseError(err.Error())
++		return
++	}
++
++	c.Data["json"] = wrapActionResponse(object.UpdateKey(id, &key))
++	c.ServeJSON()
++}
+diff --git a/object/key.go b/object/key.go
+new file mode 100644
+index 00000000..95731522
+--- /dev/null
++++ b/object/key.go
+@@ -0,0 +1,116 @@
++// Copyright 2026 The Casdoor Authors. All Rights Reserved.
++//
++// Licensed under the Apache License, Version 2.0 (the "License");
++// you may not use this file except in compliance with the License.
++// You may obtain a copy of the License at
++//
++//      http://www.apache.org/licenses/LICENSE-2.0
++//
++// Unless required by applicable law or agreed to in writing, software
++// distributed under the License is distributed on an "AS IS" BASIS,
++// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++// See the License for the specific language governing permissions and
++// limitations under the License.
++
++package object
++
++import (
++	"fmt"
++
++	"github.com/casdoor/casdoor/util"
++	"github.com/xorm-io/core"
++)
++
++type Key struct {
++	Owner       string `xorm:"varchar(100) notnull pk" json:"owner"`
++	Name        string `xorm:"varchar(100) notnull pk" json:"name"`
++	CreatedTime string `xorm:"varchar(100)" json:"createdTime"`
++	UpdatedTime string `xorm:"varchar(100)" json:"updatedTime"`
++	DisplayName string `xorm:"varchar(100)" json:"displayName"`
++
++	// Type indicates the scope this key belongs to: "Organization", "Application", or "User"
++	Type         string `xorm:"varchar(100)" json:"type"`
++	Organization string `xorm:"varchar(100)" json:"organization"`
++	Application  string `xorm:"varchar(100)" json:"application"`
++	User         string `xorm:"varchar(100)" json:"user"`
++
++	AccessKey    string `xorm:"varchar(100) index" json:"accessKey"`
++	AccessSecret string `xorm:"varchar(100)" json:"accessSecret"`
++
++	ExpireTime string `xorm:"varchar(100)" json:"expireTime"`
++	State      string `xorm:"varchar(100)" json:"state"`
++}
++
++func GetKeyCount(owner string) (int64, error) {
++	session := GetSession(owner, -1, -1, "", "", "", "")
++	return session.Count(&Key{})
++}
++
++func GetKeys(owner string) ([]*Key, error) {
++	keys := []*Key{}
++	err := ormer.Engine.Desc("created_time").Find(&keys, &Key{Owner: owner})
++	if err != nil {
++		return keys, err
++	}
++	return keys, nil
++}
++
++func GetPaginationKeys(owner string, offset, limit int, sortField, sortOrder string) ([]*Key, error) {
++	keys := []*Key{}
++	session := GetSession(owner, offset, limit, "", "", sortField, sortOrder)
++	err := session.Find(&keys)
++	if err != nil {
++		return keys, err
++	}
++	return keys, nil
++}
++
++func getKey(owner, name string) (*Key, error) {
++	if owner == "" || name == "" {
++		return nil, nil
++	}
++
++	key := Key{Owner: owner, Name: name}
++	existed, err := ormer.Engine.Get(&key)
++	if err != nil {
++		return &key, err
++	}
++
++	if existed {
++		return &key, nil
++	}
++	return nil, nil
++}
++
++func GetKey(id string) (*Key, error) {
++	owner, name, err := util.GetOwnerAndNameFromIdWithError(id)
++	if err != nil {
++		return nil, err
++	}
++	return getKey(owner, name)
++}
++
++func UpdateKey(id string, key *Key) (bool, error) {
++	owner, name, err := util.GetOwnerAndNameFromIdWithError(id)
++	if err != nil {
++		return false, err
++	}
++	if k, err := getKey(owner, name); err != nil {
++		return false, err
++	} else if k == nil {
++		return false, nil
++	}
++
++	key.UpdatedTime = util.GetCurrentTime()
++
++	affected, err := ormer.Engine.ID(core.PK{owner, name}).AllCols().Update(key)
++	if err != nil {
++		return false, err
++	}
++
++	return affected != 0, nil
++}
++
++func (key *Key) GetId() string {
++	return fmt.Sprintf("%s/%s", key.Owner, key.Name)
++}
+diff --git a/object/ormer.go b/object/ormer.go
+index c2871186..e9d80368 100644
+--- a/object/ormer.go
++++ b/object/ormer.go
+@@ -343,6 +343,11 @@ func (a *Ormer) createTable() {
+ 		panic(err)
+ 	}
+ 
++	err = a.Engine.Sync2(new(Key))
++	if err != nil {
++		panic(err)
++	}
++
+ 	err = a.Engine.Sync2(new(Role))
+ 	if err != nil {
+ 		panic(err)
+diff --git a/routers/router.go b/routers/router.go
+index 74cb07ad..87f45381 100644
+--- a/routers/router.go
++++ b/routers/router.go
+@@ -155,6 +155,10 @@ func InitAPI() {
+ 	web.Router("/api/delete-cert", &controllers.ApiController{}, "POST:DeleteCert")
+ 	web.Router("/api/update-cert-domain-expire", &controllers.ApiController{}, "POST:UpdateCertDomainExpire")
+ 
++	web.Router("/api/get-keys", &controllers.ApiController{}, "GET:GetKeys")
++	web.Router("/api/get-key", &controllers.ApiController{}, "GET:GetKey")
++	web.Router("/api/update-key", &controllers.ApiController{}, "POST:UpdateKey")
++
+ 	web.Router("/api/get-roles", &controllers.ApiController{}, "GET:GetRoles")
+ 	web.Router("/api/get-role", &controllers.ApiController{}, "GET:GetRole")
+ 	web.Router("/api/update-role", &controllers.ApiController{}, "POST:UpdateRole")
+diff --git a/web/src/App.js b/web/src/App.js
+index ec27be25..79c7e693 100644
+--- a/web/src/App.js
++++ b/web/src/App.js
+@@ -174,7 +174,7 @@ class App extends Component {
+     const validMenuItems = [
+       "/", "/shortcuts", "/apps", // Home group
+       "/organizations", "/groups", "/users", "/invitations", // User Management
+-      "/applications", "/providers", "/resources", "/certs", // Identity
++      "/applications", "/providers", "/resources", "/certs", "/keys", // Identity
+       "/roles", "/permissions", "/models", "/adapters", "/enforcers", // Authorization
+       "/sessions", "/records", "/tokens", "/verifications", // Logging & Auditing
+       "/products", "/orders", "/payments", "/plans", "/pricings", "/subscriptions", "/transactions", // Business
+@@ -215,6 +215,8 @@ class App extends Component {
+       } else if (uri.includes("/certs")) {
+         return "/certs";
+       }
++    } else if (uri.includes("/keys")) {
++      return "/keys";
+     } else if (uri.includes("/roles") || uri.includes("/permissions") || uri.includes("/models") || uri.includes("/adapters") || uri.includes("/enforcers")) {
+       if (uri.includes("/roles")) {
+         return "/roles";
+@@ -293,7 +295,7 @@ class App extends Component {
+       this.setState({selectedMenuKey: "/home"});
+     } else if (uri.includes("/organizations") || uri.includes("/trees") || uri.includes("/groups") || uri.includes("/users") || uri.includes("/invitations")) {
+       this.setState({selectedMenuKey: "/orgs"});
+-    } else if (uri.includes("/applications") || uri.includes("/providers") || uri.includes("/resources") || uri.includes("/certs")) {
++    } else if (uri.includes("/applications") || uri.includes("/providers") || uri.includes("/resources") || uri.includes("/certs") || uri.includes("/keys")) {
+       this.setState({selectedMenuKey: "/identity"});
+     } else if (uri.includes("/roles") || uri.includes("/permissions") || uri.includes("/models") || uri.includes("/adapters") || uri.includes("/enforcers")) {
+       this.setState({selectedMenuKey: "/auth"});
+diff --git a/web/src/KeyEditPage.js b/web/src/KeyEditPage.js
+new file mode 100644
+index 00000000..48483fb0
+--- /dev/null
++++ b/web/src/KeyEditPage.js
+@@ -0,0 +1,296 @@
++// Copyright 2026 The Casdoor Authors. All Rights Reserved.
++//
++// Licensed under the Apache License, Version 2.0 (the "License");
++// you may not use this file except in compliance with the License.
++// You may obtain a copy of the License at
++//
++//      http://www.apache.org/licenses/LICENSE-2.0
++//
++// Unless required by applicable law or agreed to in writing, software
++// distributed under the License is distributed on an "AS IS" BASIS,
++// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++// See the License for the specific language governing permissions and
++// limitations under the License.
++
++import React from "react";
++import {Button, Card, Col, DatePicker, Input, Row, Select} from "antd";
++import * as KeyBackend from "./backend/KeyBackend";
++import * as OrganizationBackend from "./backend/OrganizationBackend";
++import * as ApplicationBackend from "./backend/ApplicationBackend";
++import * as UserBackend from "./backend/UserBackend";
++import * as Setting from "./Setting";
++import i18next from "i18next";
++import moment from "moment";
++
++const {Option} = Select;
++
++class KeyEditPage extends React.Component {
++  constructor(props) {
++    super(props);
++    this.state = {
++      classes: props,
++      organizationName: props.match.params.organizationName,
++      keyName: props.match.params.keyName,
++      key: null,
++      organizations: [],
++      applications: [],
++      users: [],
++    };
++  }
++
++  UNSAFE_componentWillMount() {
++    this.getKey();
++    this.getOrganizations();
++  }
++
++  getKey() {
++    KeyBackend.getKey(this.state.organizationName, this.state.keyName)
++      .then((res) => {
++        if (res.data === null) {
++          this.props.history.push("/404");
++          return;
++        }
++
++        if (res.status === "error") {
++          Setting.showMessage("error", res.msg);
++          return;
++        }
++
++        this.setState({
++          key: res.data,
++        });
++
++        this.getApplicationsByOrganization(res.data.organization || this.state.organizationName);
++        this.getUsersByOrganization(res.data.organization || this.state.organizationName);
++      });
++  }
++
++  getOrganizations() {
++    OrganizationBackend.getOrganizations("admin")
++      .then((res) => {
++        this.setState({
++          organizations: res.data || [],
++        });
++      });
++  }
++
++  getApplicationsByOrganization(organizationName) {
++    ApplicationBackend.getApplicationsByOrganization("admin", organizationName)
++      .then((res) => {
++        this.setState({
++          applications: res.data || [],
++        });
++      });
++  }
++
++  getUsersByOrganization(organizationName) {
++    UserBackend.getUsers(organizationName)
++      .then((res) => {
++        if (res.status === "ok") {
++          this.setState({
++            users: res.data || [],
++          });
++        }
++      });
++  }
++
++  parseKeyField(key, value) {
++    return value;
++  }
++
++  updateKeyField(key, value) {
++    value = this.parseKeyField(key, value);
++
++    const keyObj = this.state.key;
++    keyObj[key] = value;
++    this.setState({
++      key: keyObj,
++    });
++  }
++
++  renderKey() {
++    return (
++      <Card size="small" title={
++        <div>
++          {i18next.t("key:Edit Key")}&nbsp;&nbsp;&nbsp;&nbsp;
++          <Button onClick={() => this.submitKeyEdit(false)}>{i18next.t("general:Save")}</Button>
++          <Button style={{marginLeft: "20px"}} type="primary" onClick={() => this.submitKeyEdit(true)}>{i18next.t("general:Save & Exit")}</Button>
++        </div>
++      } style={(Setting.isMobile()) ? {margin: "5px"} : {}} type="inner">
++        <Row style={{marginTop: "10px"}} >
++          <Col style={{marginTop: "5px"}} span={(Setting.isMobile()) ? 22 : 2}>
++            {Setting.getLabel(i18next.t("general:Organization"), i18next.t("general:Organization - Tooltip"))} :
++          </Col>
++          <Col span={22} >
++            <Select virtual={false} style={{width: "100%"}} disabled={!Setting.isAdminUser(this.props.account)} value={this.state.key.owner} onChange={(value => {
++              this.updateKeyField("owner", value);
++              this.updateKeyField("organization", value);
++              this.getApplicationsByOrganization(value);
++              this.getUsersByOrganization(value);
++            })}>
++              {
++                this.state.organizations.map((organization, index) => <Option key={index} value={organization.name}>{organization.name}</Option>)
++              }
++            </Select>
++          </Col>
++        </Row>
++        <Row style={{marginTop: "20px"}} >
++          <Col style={{marginTop: "5px"}} span={(Setting.isMobile()) ? 22 : 2}>
++            {Setting.getLabel(i18next.t("general:Name"), i18next.t("general:Name - Tooltip"))} :
++          </Col>
++          <Col span={22} >
++            <Input value={this.state.key.name} onChange={e => {
++              this.updateKeyField("name", e.target.value);
++            }} />
++          </Col>
++        </Row>
++        <Row style={{marginTop: "20px"}} >
++          <Col style={{marginTop: "5px"}} span={(Setting.isMobile()) ? 22 : 2}>
++            {Setting.getLabel(i18next.t("general:Display name"), i18next.t("general:Display name - Tooltip"))} :
++          </Col>
++          <Col span={22} >
++            <Input value={this.state.key.displayName} onChange={e => {
++              this.updateKeyField("displayName", e.target.value);
++            }} />
++          </Col>
++        </Row>
++        <Row style={{marginTop: "20px"}} >
++          <Col style={{marginTop: "5px"}} span={(Setting.isMobile()) ? 22 : 2}>
++            {Setting.getLabel(i18next.t("general:Type"), i18next.t("general:Type - Tooltip"))} :
++          </Col>
++          <Col span={22} >
++            <Select virtual={false} style={{width: "100%"}} value={this.state.key.type} onChange={(value => {
++              this.updateKeyField("type", value);
++            })}>
++              <Option value="Organization">{i18next.t("general:Organization")}</Option>
++              <Option value="Application">{i18next.t("general:Application")}</Option>
++              <Option value="User">{i18next.t("general:User")}</Option>
++            </Select>
++          </Col>
++        </Row>
++        {
++          this.state.key.type === "Application" ? (
++            <Row style={{marginTop: "20px"}} >
++              <Col style={{marginTop: "5px"}} span={(Setting.isMobile()) ? 22 : 2}>
++                {Setting.getLabel(i18next.t("general:Application"), i18next.t("general:Application - Tooltip"))} :
++              </Col>
++              <Col span={22} >
++                <Select virtual={false} style={{width: "100%"}} value={this.state.key.application} onChange={(value => {
++                  this.updateKeyField("application", value);
++                })}>
++                  {
++                    this.state.applications.map((application, index) => <Option key={index} value={application.name}>{application.name}</Option>)
++                  }
++                </Select>
++              </Col>
++            </Row>
++          ) : null
++        }
++        {
++          this.state.key.type === "User" ? (
++            <Row style={{marginTop: "20px"}} >
++              <Col style={{marginTop: "5px"}} span={(Setting.isMobile()) ? 22 : 2}>
++                {Setting.getLabel(i18next.t("general:User"), i18next.t("general:User - Tooltip"))} :
++              </Col>
++              <Col span={22} >
++                <Select virtual={false} style={{width: "100%"}} value={this.state.key.user} onChange={(value => {
++                  this.updateKeyField("user", value);
++                })}>
++                  {
++                    this.state.users.map((user, index) => <Option key={index} value={user.name}>{user.name}</Option>)
++                  }
++                </Select>
++              </Col>
++            </Row>
++          ) : null
++        }
++        <Row style={{marginTop: "20px"}} >
++          <Col style={{marginTop: "5px"}} span={(Setting.isMobile()) ? 22 : 2}>
++            {Setting.getLabel(i18next.t("key:Access key"), i18next.t("key:Access key - Tooltip"))} :
++          </Col>
++          <Col span={22} >
++            <Input value={this.state.key.accessKey} readOnly={true} />
++          </Col>
++        </Row>
++        <Row style={{marginTop: "20px"}} >
++          <Col style={{marginTop: "5px"}} span={(Setting.isMobile()) ? 22 : 2}>
++            {Setting.getLabel(i18next.t("key:Access secret"), i18next.t("key:Access secret - Tooltip"))} :
++          </Col>
++          <Col span={22} >
++            <Input.Password value={this.state.key.accessSecret} readOnly={true} />
++          </Col>
++        </Row>
++        <Row style={{marginTop: "20px"}} >
++          <Col style={{marginTop: "5px"}} span={(Setting.isMobile()) ? 22 : 2}>
++            {Setting.getLabel(i18next.t("general:Expire time"), i18next.t("general:Expire time - Tooltip"))} :
++          </Col>
++          <Col span={22} >
++            <DatePicker
++              showTime
++              value={this.state.key.expireTime ? moment(this.state.key.expireTime) : null}
++              onChange={(value, dateString) => {
++                this.updateKeyField("expireTime", dateString);
++              }}
++            />
++          </Col>
++        </Row>
++        <Row style={{marginTop: "20px"}} >
++          <Col style={{marginTop: "5px"}} span={(Setting.isMobile()) ? 22 : 2}>
++            {Setting.getLabel(i18next.t("general:State"), i18next.t("general:State - Tooltip"))} :
++          </Col>
++          <Col span={22} >
++            <Select virtual={false} style={{width: "100%"}} value={this.state.key.state} onChange={(value => {
++              this.updateKeyField("state", value);
++            })}>
++              <Option value="Active">{i18next.t("subscription:Active")}</Option>
++              <Option value="Inactive">{i18next.t("key:Inactive")}</Option>
++            </Select>
++          </Col>
++        </Row>
++      </Card>
++    );
++  }
++
++  submitKeyEdit(exitAfterSave) {
++    const key = Setting.deepCopy(this.state.key);
++    KeyBackend.updateKey(this.state.organizationName, this.state.keyName, key)
++      .then((res) => {
++        if (res.status === "ok") {
++          Setting.showMessage("success", i18next.t("general:Successfully saved"));
++          this.setState({
++            organizationName: this.state.key.owner,
++            keyName: this.state.key.name,
++          });
++
++          if (exitAfterSave) {
++            this.props.history.push("/keys");
++          } else {
++            this.props.history.push(`/keys/${this.state.key.owner}/${this.state.key.name}`);
++          }
++        } else {
++          Setting.showMessage("error", `${i18next.t("general:Failed to save")}: ${res.msg}`);
++          this.updateKeyField("owner", this.state.organizationName);
++          this.updateKeyField("name", this.state.keyName);
++        }
++      })
++      .catch(error => {
++        Setting.showMessage("error", `${i18next.t("general:Failed to connect to server")}: ${error}`);
++      });
++  }
++
++  render() {
++    return (
++      <div>
++        {
++          this.state.key !== null ? this.renderKey() : null
++        }
++        <div style={{marginTop: "20px", marginLeft: "40px"}}>
++          <Button size="large" onClick={() => this.submitKeyEdit(false)}>{i18next.t("general:Save")}</Button>
++          <Button style={{marginLeft: "20px"}} type="primary" size="large" onClick={() => this.submitKeyEdit(true)}>{i18next.t("general:Save & Exit")}</Button>
++        </div>
++      </div>
++    );
++  }
++}
++
++export default KeyEditPage;
+diff --git a/web/src/KeyListPage.js b/web/src/KeyListPage.js
+new file mode 100644
+index 00000000..bd8d06c5
+--- /dev/null
++++ b/web/src/KeyListPage.js
+@@ -0,0 +1,166 @@
++// Copyright 2026 The Casdoor Authors. All Rights Reserved.
++//
++// Licensed under the Apache License, Version 2.0 (the "License");
++// you may not use this file except in compliance with the License.
++// You may obtain a copy of the License at
++//
++//      http://www.apache.org/licenses/LICENSE-2.0
++//
++// Unless required by applicable law or agreed to in writing, software
++// distributed under the License is distributed on an "AS IS" BASIS,
++// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++// See the License for the specific language governing permissions and
++// limitations under the License.
++
++import React from "react";
++import {Link} from "react-router-dom";
++import {Button, Table} from "antd";
++import * as Setting from "./Setting";
++import * as KeyBackend from "./backend/KeyBackend";
++import i18next from "i18next";
++import BaseListPage from "./BaseListPage";
++
++class KeyListPage extends BaseListPage {
++  renderTable(keys) {
++    const columns = [
++      {
++        title: i18next.t("general:Name"),
++        dataIndex: "name",
++        key: "name",
++        width: "140px",
++        fixed: "left",
++        sorter: true,
++        render: (text, record, index) => {
++          return (
++            <Link to={`/keys/${record.owner}/${text}`}>
++              {text}
++            </Link>
++          );
++        },
++      },
++      {
++        title: i18next.t("general:Organization"),
++        dataIndex: "owner",
++        key: "owner",
++        width: "150px",
++        sorter: true,
++        render: (text, record, index) => {
++          return (
++            <Link to={`/organizations/${text}`}>
++              {text}
++            </Link>
++          );
++        },
++      },
++      {
++        title: i18next.t("general:Created time"),
++        dataIndex: "createdTime",
++        key: "createdTime",
++        width: "160px",
++        sorter: true,
++        render: (text, record, index) => {
++          return Setting.getFormattedDate(text);
++        },
++      },
++      {
++        title: i18next.t("general:Display name"),
++        dataIndex: "displayName",
++        key: "displayName",
++        width: "170px",
++        sorter: true,
++      },
++      {
++        title: i18next.t("general:Type"),
++        dataIndex: "type",
++        key: "type",
++        width: "140px",
++        sorter: true,
++      },
++      {
++        title: i18next.t("key:Access key"),
++        dataIndex: "accessKey",
++        key: "accessKey",
++        width: "300px",
++        sorter: true,
++      },
++      {
++        title: i18next.t("general:Expire time"),
++        dataIndex: "expireTime",
++        key: "expireTime",
++        width: "160px",
++        sorter: true,
++        render: (text, record, index) => {
++          return Setting.getFormattedDate(text);
++        },
++      },
++      {
++        title: i18next.t("general:State"),
++        dataIndex: "state",
++        key: "state",
++        width: "120px",
++        sorter: true,
++      },
++      {
++        title: i18next.t("general:Action"),
++        dataIndex: "",
++        key: "op",
++        width: "120px",
++        fixed: (Setting.isMobile()) ? "false" : "right",
++        render: (text, record, index) => {
++          return (
++            <Button type="primary" onClick={() => this.props.history.push(`/keys/${record.owner}/${record.name}`)}>
++              {i18next.t("general:Edit")}
++            </Button>
++          );
++        },
++      },
++    ];
++
++    const paginationProps = {
++      total: this.state.pagination.total,
++      showQuickJumper: true,
++      showSizeChanger: true,
++      showTotal: () => i18next.t("general:{total} in total").replace("{total}", this.state.pagination.total),
++    };
++
++    return (
++      <div>
++        <Table scroll={{x: "max-content"}} columns={columns} dataSource={keys} rowKey={(record) => `${record.owner}/${record.name}`} size="middle" bordered pagination={paginationProps}
++          title={() => i18next.t("general:Keys")}
++          loading={this.state.loading}
++          onChange={this.handleTableChange}
++        />
++      </div>
++    );
++  }
++
++  fetch = (params = {}) => {
++    const sortField = params.sortField, sortOrder = params.sortOrder;
++    this.setState({loading: true});
++    KeyBackend.getKeys(Setting.getRequestOrganization(this.props.account), params.pagination.current, params.pagination.pageSize, sortField, sortOrder)
++      .then((res) => {
++        this.setState({
++          loading: false,
++        });
++        if (res.status === "ok") {
++          this.setState({
++            data: res.data,
++            pagination: {
++              ...params.pagination,
++              total: res.data2,
++            },
++          });
++        } else {
++          if (Setting.isResponseDenied(res)) {
++            this.setState({
++              isAuthorized: false,
++            });
++          } else {
++            Setting.showMessage("error", res.msg);
++          }
++        }
++      });
++  };
++}
++
++export default KeyListPage;
+diff --git a/web/src/ManagementPage.js b/web/src/ManagementPage.js
+index 0ffc6056..b9f31b19 100644
+--- a/web/src/ManagementPage.js
++++ b/web/src/ManagementPage.js
+@@ -47,6 +47,8 @@ import RecordListPage from "./RecordListPage";
+ import ResourceListPage from "./ResourceListPage";
+ import CertListPage from "./CertListPage";
+ import CertEditPage from "./CertEditPage";
++import KeyListPage from "./KeyListPage";
++import KeyEditPage from "./KeyEditPage";
+ import RoleListPage from "./RoleListPage";
+ import RoleEditPage from "./RoleEditPage";
+ import PermissionListPage from "./PermissionListPage";
+@@ -329,6 +331,7 @@ function ManagementPage(props) {
+       Setting.getItem(<Link to="/providers">{i18next.t("application:Providers")}</Link>, "/providers"),
+       Setting.getItem(<Link to="/resources">{i18next.t("general:Resources")}</Link>, "/resources"),
+       Setting.getItem(<Link to="/certs">{i18next.t("general:Certs")}</Link>, "/certs"),
++      Setting.getItem(<Link to="/keys">{i18next.t("general:Keys")}</Link>, "/keys"),
+     ]));
+ 
+     res.push(Setting.getItem(<Link style={{color: textColor}} to="/roles">{i18next.t("general:Authorization")}</Link>, "/auth", <SafetyCertificateTwoTone twoToneColor={twoToneColor} />, [
+@@ -485,6 +488,8 @@ function ManagementPage(props) {
+         <Route exact path="/resources" render={(props) => renderLoginIfNotLoggedIn(<ResourceListPage account={account} {...props} />)} />
+         <Route exact path="/certs" render={(props) => renderLoginIfNotLoggedIn(<CertListPage account={account} {...props} />)} />
+         <Route exact path="/certs/:organizationName/:certName" render={(props) => renderLoginIfNotLoggedIn(<CertEditPage account={account} {...props} />)} />
++        <Route exact path="/keys" render={(props) => renderLoginIfNotLoggedIn(<KeyListPage account={account} {...props} />)} />
++        <Route exact path="/keys/:organizationName/:keyName" render={(props) => renderLoginIfNotLoggedIn(<KeyEditPage account={account} {...props} />)} />
+         <Route exact path="/servers" render={(props) => renderLoginIfNotLoggedIn(<ServerListPage account={account} {...props} />)} />
+         <Route exact path="/servers/:organizationName/:serverName" render={(props) => renderLoginIfNotLoggedIn(<ServerEditPage account={account} {...props} />)} />
+         <Route exact path="/sites" render={(props) => renderLoginIfNotLoggedIn(<SiteListPage account={account} {...props} />)} />
+diff --git a/web/src/backend/KeyBackend.js b/web/src/backend/KeyBackend.js
+new file mode 100644
+index 00000000..e5dc941e
+--- /dev/null
++++ b/web/src/backend/KeyBackend.js
+@@ -0,0 +1,47 @@
++// Copyright 2026 The Casdoor Authors. All Rights Reserved.
++//
++// Licensed under the Apache License, Version 2.0 (the "License");
++// you may not use this file except in compliance with the License.
++// You may obtain a copy of the License at
++//
++//      http://www.apache.org/licenses/LICENSE-2.0
++//
++// Unless required by applicable law or agreed to in writing, software
++// distributed under the License is distributed on an "AS IS" BASIS,
++// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++// See the License for the specific language governing permissions and
++// limitations under the License.
++
++import * as Setting from "../Setting";
++
++export function getKeys(owner, page = "", pageSize = "", sortField = "", sortOrder = "") {
++  return fetch(`${Setting.ServerUrl}/api/get-keys?owner=${owner}&p=${page}&pageSize=${pageSize}&sortField=${sortField}&sortOrder=${sortOrder}`, {
++    method: "GET",
++    credentials: "include",
++    headers: {
++      "Accept-Language": Setting.getAcceptLanguage(),
++    },
++  }).then(res => res.json());
++}
++
++export function getKey(owner, name) {
++  return fetch(`${Setting.ServerUrl}/api/get-key?id=${owner}/${encodeURIComponent(name)}`, {
++    method: "GET",
++    credentials: "include",
++    headers: {
++      "Accept-Language": Setting.getAcceptLanguage(),
++    },
++  }).then(res => res.json());
++}
++
++export function updateKey(owner, name, key) {
++  const newKey = Setting.deepCopy(key);
++  return fetch(`${Setting.ServerUrl}/api/update-key?id=${owner}/${encodeURIComponent(name)}`, {
++    method: "POST",
++    credentials: "include",
++    body: JSON.stringify(newKey),
++    headers: {
++      "Accept-Language": Setting.getAcceptLanguage(),
++    },
++  }).then(res => res.json());
++}
+-- 
+2.49.0
+

@@ -1,0 +1,18 @@
+#!/usr/bin/env bash
+# Replay casdoor PR #5285 (commit 239e8bd6, "feat: add key list/edit pages")
+# as uncommitted working-tree changes — as if a coding agent had just made
+# them. From here: branch, commit, push, open a PR. The `gh pr create` fires
+# the niro hook, which pentests the diff.
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+cd "$(git rev-parse --show-toplevel)"
+
+if ! git diff --quiet || ! git diff --cached --quiet; then
+  echo "working tree has tracked changes; commit or stash first" >&2
+  exit 1
+fi
+
+git apply "$SCRIPT_DIR/pr.patch"
+echo "→ casdoor PR #5285 changes applied (uncommitted)."
+echo "→ next: branch, commit, push, open a PR."
