@@ -95,11 +95,18 @@ func UpdateKey(id string, key *Key) (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	if k, err := getKey(owner, name); err != nil {
+	existing, err := getKey(owner, name)
+	if err != nil {
 		return false, err
-	} else if k == nil {
+	} else if existing == nil {
 		return false, nil
 	}
+
+	// Credential and ownership fields are immutable via the update API.
+	key.Owner = owner
+	key.Name = name
+	key.AccessKey = existing.AccessKey
+	key.AccessSecret = existing.AccessSecret
 
 	key.UpdatedTime = util.GetCurrentTime()
 

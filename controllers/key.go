@@ -89,6 +89,10 @@ func (c *ApiController) GetKey() {
 		return
 	}
 
+	if key != nil {
+		key.AccessSecret = "***"
+	}
+
 	c.ResponseOk(key)
 }
 
