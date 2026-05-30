@@ -82,6 +82,62 @@ func TestUpdateKey_CredentialsAreImmutable(t *testing.T) {
 	}
 }
 
+// TestUpdateKey_TenantBindingIsImmutable guards TC-E9DA4A48:
+// UpdateKey must not allow reassigning a key's organization, application, or user
+// to values outside the key's original tenant.
+func TestUpdateKey_TenantBindingIsImmutable(t *testing.T) {
+	InitConfig()
+
+	original := &Key{
+		Owner:        "built-in",
+		Name:         "test-tenant-immutable",
+		CreatedTime:  util.GetCurrentTime(),
+		UpdatedTime:  util.GetCurrentTime(),
+		DisplayName:  "Original",
+		Type:         "Application",
+		Organization: "built-in",
+		Application:  "app-built-in",
+		User:         "",
+		AccessKey:    "ak-tenant",
+		AccessSecret: "secret-tenant",
+		State:        "Active",
+	}
+	cleanup := seedTestKey(t, original)
+	defer cleanup()
+
+	// Attacker attempts to repoint key to a different tenant.
+	attackerKey := &Key{
+		Owner:        "built-in",
+		Name:         "test-tenant-immutable",
+		DisplayName:  "Tampered",
+		Type:         "Organization",
+		Organization: "attacker-org",
+		Application:  "attacker-app",
+		User:         "attacker-user",
+		State:        "Active",
+	}
+
+	_, err := UpdateKey("built-in/test-tenant-immutable", attackerKey)
+	if err != nil {
+		t.Fatalf("UpdateKey error: %v", err)
+	}
+
+	stored, err := getKey("built-in", "test-tenant-immutable")
+	if err != nil {
+		t.Fatalf("getKey error: %v", err)
+	}
+
+	if stored.Organization != original.Organization {
+		t.Errorf("organization was reassigned: got %q, want %q", stored.Organization, original.Organization)
+	}
+	if stored.Application != original.Application {
+		t.Errorf("application was reassigned: got %q, want %q", stored.Application, original.Application)
+	}
+	if stored.User != original.User {
+		t.Errorf("user was reassigned: got %q, want %q", stored.User, original.User)
+	}
+}
+
 // TestUpdateKey_PreservesUnsentFields guards TC-D68AA548:
 // A partial update body must not silently zero fields the client did not touch.
 func TestUpdateKey_PreservesUnsentFields(t *testing.T) {

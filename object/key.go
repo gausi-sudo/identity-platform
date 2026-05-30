@@ -102,18 +102,16 @@ func UpdateKey(id string, key *Key) (bool, error) {
 		return false, nil
 	}
 
-	// Only mutable fields are applied; accessKey and accessSecret are immutable after creation.
+	// Only presentation/lifecycle fields are mutable. Identity-binding fields
+	// (organization, application, user) and credentials (accessKey, accessSecret)
+	// are immutable after creation.
 	existing.UpdatedTime = util.GetCurrentTime()
 	existing.DisplayName = key.DisplayName
-	existing.Type = key.Type
-	existing.Organization = key.Organization
-	existing.Application = key.Application
-	existing.User = key.User
 	existing.ExpireTime = key.ExpireTime
 	existing.State = key.State
 
 	affected, err := ormer.Engine.ID(core.PK{owner, name}).
-		Cols("updated_time", "display_name", "type", "organization", "application", "user", "expire_time", "state").
+		Cols("updated_time", "display_name", "expire_time", "state").
 		Update(existing)
 	if err != nil {
 		return false, err
