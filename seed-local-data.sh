@@ -105,19 +105,18 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 CREDS_FILE="$SCRIPT_DIR/niro/credentials.yaml"
 
 # --- Seed API keys ---
-# The key feature exposes no create endpoint over HTTP, so insert rows
-# directly into the sqlite store the server is running against. This
-# gives get-key / update-key real rows to operate on; without them the
-# key table is empty and those endpoints have nothing to return.
+# Casdoor stores API keys as access_key/access_secret columns on the user
+# row. Stamp deterministic keys so Niro has known credentials to probe
+# the access-key-authenticated endpoints.
 DB="$SCRIPT_DIR/data/local.db"
 if [ -f "$DB" ]; then
   sqlite3 -cmd ".timeout 5000" "$DB" <<'SQL'
-INSERT OR REPLACE INTO key
-  (owner,name,created_time,display_name,type,organization,application,user,access_key,access_secret,state) VALUES
-  ('built-in','prod-signing-key','2026-01-15T10:00:00Z','Prod Signing Key','Organization','built-in','app-built-in','admin','AK-BUILTIN-PROD','prodsign_8f3c2a9b4e7d1f60a5c8e2b74d11ae9c','Active'),
-  ('test-org','alice-api-key','2026-02-20T09:30:00Z','Alice API Key','User','test-org','app-test-org','alice','AK-TESTORG-ALICE','apitoken_2b7e9a4c1d8f3056b2a9c7e4f0aa31bd','Active');
+UPDATE user SET access_key='AK-BUILTIN-ADMIN', access_secret='prodsign_8f3c2a9b4e7d1f60a5c8e2b74d11ae9c'
+  WHERE owner='built-in' AND name='admin';
+UPDATE user SET access_key='AK-TESTORG-ALICE', access_secret='apitoken_2b7e9a4c1d8f3056b2a9c7e4f0aa31bd'
+  WHERE owner='test-org' AND name='alice';
 SQL
-  echo "seeded 2 API keys (built-in/prod-signing-key, test-org/alice-api-key)"
+  echo "stamped access_key on admin (built-in) and alice (test-org)"
 else
   echo "WARN: $DB not found — start the server first so the schema exists; skipping key seed" >&2
 fi
@@ -157,10 +156,10 @@ yaml = f"""credentials:
 
   - description: >-
       Org admin of $USER_ORG. {user_login_c}. Admin within $USER_ORG only,
-      so it reaches the admin-gated key endpoints for $USER_ORG. Use to
-      attempt cross-org operations — e.g. update-key on a $USER_ORG key
-      with a $ADMIN_ORG owner in the body — and verify org isolation holds.
-      Must not be able to read or mutate $ADMIN_ORG resources.
+      so it reaches the admin-gated add-user-keys endpoint for $USER_ORG
+      users. Use to attempt cross-org operations — e.g. stamping keys on
+      a $ADMIN_ORG user — and verify org isolation holds. Must not be
+      able to read or mutate $ADMIN_ORG resources.
     type: username_password
     identifier: "$USER_C"
     secret: "$USER_C_PASS"
