@@ -16,6 +16,7 @@ package controllers
 
 import (
 	"encoding/json"
+	"fmt"
 
 	"github.com/beego/beego/v2/core/utils/pagination"
 	"github.com/casdoor/casdoor/object"
@@ -89,7 +90,7 @@ func (c *ApiController) GetKey() {
 		return
 	}
 
-	c.ResponseOk(key)
+	c.ResponseOk(object.GetMaskedKey(key))
 }
 
 // UpdateKey
@@ -107,6 +108,16 @@ func (c *ApiController) UpdateKey() {
 	err := json.Unmarshal(c.Ctx.Input.RequestBody, &key)
 	if err != nil {
 		c.ResponseError(err.Error())
+		return
+	}
+
+	urlOwner, urlName, err := util.GetOwnerAndNameFromIdWithError(id)
+	if err != nil {
+		c.ResponseError(err.Error())
+		return
+	}
+	if key.Owner != urlOwner || key.Name != urlName {
+		c.ResponseError(fmt.Sprintf("body owner/name (%s/%s) must match URL id (%s)", key.Owner, key.Name, id))
 		return
 	}
 

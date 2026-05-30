@@ -90,20 +90,40 @@ func GetKey(id string) (*Key, error) {
 	return getKey(owner, name)
 }
 
+func GetMaskedKey(key *Key) *Key {
+	if key == nil {
+		return nil
+	}
+	masked := *key
+	masked.AccessSecret = "***"
+	return &masked
+}
+
 func UpdateKey(id string, key *Key) (bool, error) {
 	owner, name, err := util.GetOwnerAndNameFromIdWithError(id)
 	if err != nil {
 		return false, err
 	}
-	if k, err := getKey(owner, name); err != nil {
+	existing, err := getKey(owner, name)
+	if err != nil {
 		return false, err
-	} else if k == nil {
+	} else if existing == nil {
 		return false, nil
 	}
 
-	key.UpdatedTime = util.GetCurrentTime()
+	// Copy only safe-to-mutate fields; preserve server-generated credentials and PK.
+	existing.UpdatedTime = util.GetCurrentTime()
+	existing.DisplayName = key.DisplayName
+	existing.Type = key.Type
+	existing.Organization = key.Organization
+	existing.Application = key.Application
+	existing.User = key.User
+	existing.ExpireTime = key.ExpireTime
+	existing.State = key.State
 
-	affected, err := ormer.Engine.ID(core.PK{owner, name}).AllCols().Update(key)
+	affected, err := ormer.Engine.ID(core.PK{owner, name}).
+		Cols("updated_time", "display_name", "type", "organization", "application", "user", "expire_time", "state").
+		Update(existing)
 	if err != nil {
 		return false, err
 	}
