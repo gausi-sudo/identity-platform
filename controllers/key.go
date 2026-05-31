@@ -16,6 +16,7 @@ package controllers
 
 import (
 	"encoding/json"
+	"fmt"
 
 	"github.com/beego/beego/v2/core/utils/pagination"
 	"github.com/casdoor/casdoor/object"
@@ -89,6 +90,10 @@ func (c *ApiController) GetKey() {
 		return
 	}
 
+	if key != nil {
+		key.AccessSecret = "***"
+	}
+
 	c.ResponseOk(key)
 }
 
@@ -107,6 +112,13 @@ func (c *ApiController) UpdateKey() {
 	err := json.Unmarshal(c.Ctx.Input.RequestBody, &key)
 	if err != nil {
 		c.ResponseError(err.Error())
+		return
+	}
+
+	// Guard: URL id must match body identity so the authz filter and DB
+	// operation target the same row (prevents cross-org BFLA).
+	if id != fmt.Sprintf("%s/%s", key.Owner, key.Name) {
+		c.ResponseError("id mismatch: URL id must equal body owner/name")
 		return
 	}
 
