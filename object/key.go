@@ -95,16 +95,21 @@ func UpdateKey(id string, key *Key) (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	if k, err := getKey(owner, name); err != nil {
+	existing, err := getKey(owner, name)
+	if err != nil {
 		return false, err
-	} else if k == nil {
+	} else if existing == nil {
 		return false, nil
 	}
 
 	key.UpdatedTime = util.GetCurrentTime()
-	// Clamp attribution fields to the row's owner so a caller cannot inject
-	// cross-org references into inner fields while keeping owner/name valid.
-	key.Organization = owner
+	// Clamp all attribution fields to the stored values so callers cannot
+	// inject cross-org references. Organization, Application, User, and
+	// AccessKey are treated as immutable after creation.
+	key.Organization = existing.Organization
+	key.Application = existing.Application
+	key.User = existing.User
+	key.AccessKey = existing.AccessKey
 
 	affected, err := ormer.Engine.ID(core.PK{owner, name}).AllCols().Update(key)
 	if err != nil {
