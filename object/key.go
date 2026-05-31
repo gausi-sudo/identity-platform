@@ -101,9 +101,13 @@ func UpdateKey(id string, key *Key) (bool, error) {
 		return false, nil
 	}
 
+	if key.Owner != owner {
+		return false, fmt.Errorf("owner mismatch: URL id owner=%s but body owner=%s", owner, key.Owner)
+	}
+
 	key.UpdatedTime = util.GetCurrentTime()
 
-	affected, err := ormer.Engine.ID(core.PK{owner, name}).AllCols().Update(key)
+	affected, err := ormer.Engine.ID(core.PK{owner, name}).Update(key)
 	if err != nil {
 		return false, err
 	}

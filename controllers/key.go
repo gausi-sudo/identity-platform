@@ -89,6 +89,10 @@ func (c *ApiController) GetKey() {
 		return
 	}
 
+	if key != nil {
+		key.AccessSecret = "***"
+	}
+
 	c.ResponseOk(key)
 }
 
@@ -103,12 +107,21 @@ func (c *ApiController) GetKey() {
 func (c *ApiController) UpdateKey() {
 	id := c.Ctx.Input.Query("id")
 
-	var key object.Key
-	err := json.Unmarshal(c.Ctx.Input.RequestBody, &key)
+	owner, _, err := util.GetOwnerAndNameFromIdWithError(id)
 	if err != nil {
 		c.ResponseError(err.Error())
 		return
 	}
+
+	var key object.Key
+	err = json.Unmarshal(c.Ctx.Input.RequestBody, &key)
+	if err != nil {
+		c.ResponseError(err.Error())
+		return
+	}
+
+	// Pin owner to the URL id's org to prevent cross-tenant reassignment.
+	key.Owner = owner
 
 	c.Data["json"] = wrapActionResponse(object.UpdateKey(id, &key))
 	c.ServeJSON()
