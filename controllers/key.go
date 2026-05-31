@@ -123,6 +123,12 @@ func (c *ApiController) UpdateKey() {
 	// Pin owner to the URL id's org to prevent cross-tenant reassignment.
 	key.Owner = owner
 
+	// Strip the masking sentinel so a GET→edit→POST round-trip doesn't
+	// overwrite the stored secret with the literal string "***".
+	if key.AccessSecret == "***" {
+		key.AccessSecret = ""
+	}
+
 	c.Data["json"] = wrapActionResponse(object.UpdateKey(id, &key))
 	c.ServeJSON()
 }
