@@ -122,6 +122,20 @@ func (c *ApiController) UpdateKey() {
 		return
 	}
 
+	// If the caller submits the masked placeholder (the normal fetch→save
+	// round-trip through the UI), restore the real secret so AllCols()
+	// does not overwrite the stored value with the literal "***".
+	if key.AccessSecret == "***" {
+		existing, err := object.GetKey(id)
+		if err != nil {
+			c.ResponseError(err.Error())
+			return
+		}
+		if existing != nil {
+			key.AccessSecret = existing.AccessSecret
+		}
+	}
+
 	c.Data["json"] = wrapActionResponse(object.UpdateKey(id, &key))
 	c.ServeJSON()
 }
