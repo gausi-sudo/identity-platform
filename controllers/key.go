@@ -122,10 +122,10 @@ func (c *ApiController) UpdateKey() {
 		return
 	}
 
-	// If the caller submits the masked placeholder (the normal fetch→save
-	// round-trip through the UI), restore the real secret so AllCols()
-	// does not overwrite the stored value with the literal "***".
-	if key.AccessSecret == "***" {
+	// If the caller submits the masked placeholder or an empty value (both
+	// arise naturally from the UI fetch→save round-trip), restore the real
+	// secret so AllCols() does not overwrite the stored value.
+	if key.AccessSecret == "***" || key.AccessSecret == "" {
 		existing, err := object.GetKey(id)
 		if err != nil {
 			c.ResponseError(err.Error())

@@ -102,6 +102,9 @@ func UpdateKey(id string, key *Key) (bool, error) {
 	}
 
 	key.UpdatedTime = util.GetCurrentTime()
+	// Clamp attribution fields to the row's owner so a caller cannot inject
+	// cross-org references into inner fields while keeping owner/name valid.
+	key.Organization = owner
 
 	affected, err := ormer.Engine.ID(core.PK{owner, name}).AllCols().Update(key)
 	if err != nil {
