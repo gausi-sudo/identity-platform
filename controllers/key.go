@@ -42,13 +42,7 @@ func (c *ApiController) GetKeys() {
 			c.ResponseError(err.Error())
 			return
 		}
-		for _, k := range keys {
-			if k != nil {
-				k.AccessSecret = "***"
-			}
-		}
-
-		c.ResponseOk(keys)
+		c.ResponseOk(object.GetMaskedKeys(keys))
 	} else {
 		limit := util.ParseInt(limit)
 		count, err := object.GetKeyCount(owner)
@@ -63,13 +57,7 @@ func (c *ApiController) GetKeys() {
 			c.ResponseError(err.Error())
 			return
 		}
-		for _, k := range keys {
-			if k != nil {
-				k.AccessSecret = "***"
-			}
-		}
-
-		c.ResponseOk(keys, paginator.Nums())
+		c.ResponseOk(object.GetMaskedKeys(keys), paginator.Nums())
 	}
 }
 
@@ -89,7 +77,7 @@ func (c *ApiController) GetKey() {
 		return
 	}
 
-	c.ResponseOk(key)
+	c.ResponseOk(object.GetMaskedKey(key))
 }
 
 // UpdateKey
