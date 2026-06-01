@@ -95,10 +95,16 @@ func UpdateKey(id string, key *Key) (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	if k, err := getKey(owner, name); err != nil {
+	existing, err := getKey(owner, name)
+	if err != nil {
 		return false, err
-	} else if k == nil {
+	} else if existing == nil {
 		return false, nil
+	}
+
+	// Preserve the real secret when the client sends back the masking placeholder.
+	if key.AccessSecret == "***" || key.AccessSecret == "" {
+		key.AccessSecret = existing.AccessSecret
 	}
 
 	key.UpdatedTime = util.GetCurrentTime()
