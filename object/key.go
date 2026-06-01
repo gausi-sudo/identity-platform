@@ -95,10 +95,43 @@ func UpdateKey(id string, key *Key) (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	if k, err := getKey(owner, name); err != nil {
+	existing, err := getKey(owner, name)
+	if err != nil {
 		return false, err
-	} else if k == nil {
+	}
+	if existing == nil {
 		return false, nil
+	}
+
+	// Preserve server-owned immutable fields regardless of what the caller sent.
+	key.Owner = existing.Owner
+	key.Name = existing.Name
+	key.CreatedTime = existing.CreatedTime
+	key.AccessKey = existing.AccessKey
+	key.AccessSecret = existing.AccessSecret
+
+	// For mutable fields absent from the request body (zero value), keep the
+	// existing value so a partial update cannot blank them.
+	if key.DisplayName == "" {
+		key.DisplayName = existing.DisplayName
+	}
+	if key.Type == "" {
+		key.Type = existing.Type
+	}
+	if key.Organization == "" {
+		key.Organization = existing.Organization
+	}
+	if key.Application == "" {
+		key.Application = existing.Application
+	}
+	if key.User == "" {
+		key.User = existing.User
+	}
+	if key.ExpireTime == "" {
+		key.ExpireTime = existing.ExpireTime
+	}
+	if key.State == "" {
+		key.State = existing.State
 	}
 
 	key.UpdatedTime = util.GetCurrentTime()
