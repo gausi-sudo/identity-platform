@@ -89,6 +89,10 @@ func (c *ApiController) GetKey() {
 		return
 	}
 
+	if key != nil {
+		key.AccessSecret = "***"
+	}
+
 	c.ResponseOk(key)
 }
 
@@ -107,6 +111,11 @@ func (c *ApiController) UpdateKey() {
 	err := json.Unmarshal(c.Ctx.Input.RequestBody, &key)
 	if err != nil {
 		c.ResponseError(err.Error())
+		return
+	}
+
+	if key.GetId() != id {
+		c.ResponseError("body owner/name must match URL id param")
 		return
 	}
 
