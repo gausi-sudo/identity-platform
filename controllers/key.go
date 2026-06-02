@@ -89,7 +89,7 @@ func (c *ApiController) GetKey() {
 		return
 	}
 
-	c.ResponseOk(key)
+	c.ResponseOk(object.GetMaskedKey(key))
 }
 
 // UpdateKey
