@@ -103,31 +103,19 @@ func UpdateKey(id string, key *Key) (bool, error) {
 		return false, nil
 	}
 
-	// Read-modify-write: only overwrite user-editable fields; preserve everything else.
-	// Caller-supplied empty string means "leave unchanged" for structured fields.
-	if key.Type != "" {
-		existing.Type = key.Type
-	}
-	if key.Organization != "" {
-		existing.Organization = key.Organization
-	}
-	if key.Application != "" {
-		existing.Application = key.Application
-	}
-	if key.User != "" {
-		existing.User = key.User
-	}
+	// Read-modify-write: only overwrite metadata fields; identity/scope fields are
+	// immutable after creation. Caller-supplied empty string means "leave unchanged".
+	existing.DisplayName = key.DisplayName
 	if key.ExpireTime != "" {
 		existing.ExpireTime = key.ExpireTime
 	}
 	if key.State != "" {
 		existing.State = key.State
 	}
-	existing.DisplayName = key.DisplayName
 	existing.UpdatedTime = util.GetCurrentTime()
 
 	affected, err := ormer.Engine.ID(core.PK{owner, name}).
-		Cols("updated_time", "display_name", "type", "organization", "application", "user", "expire_time", "state").
+		Cols("updated_time", "display_name", "expire_time", "state").
 		Update(existing)
 	if err != nil {
 		return false, err

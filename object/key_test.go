@@ -81,6 +81,51 @@ func TestUpdateKeyDoesNotOverwriteAccessSecret(t *testing.T) {
 	}
 }
 
+// TC-9E3A3A65: UpdateKey must not allow rebinding the key's identity (type, organization,
+// application, user) — those are immutable after creation. Only metadata (displayName,
+// expireTime, state) should be editable.
+func TestUpdateKeyDoesNotRebindIdentityFields(t *testing.T) {
+	InitConfig()
+
+	original, cleanup := seedTestKey(t)
+	defer cleanup()
+
+	// Attempt to rebind user from original owner to a different identity.
+	rebind := &Key{
+		Owner:        original.Owner,
+		Name:         original.Name,
+		DisplayName:  "rebind-attempt",
+		Type:         "Application",
+		Organization: "built-in",
+		Application:  "app-built-in",
+		User:         "carol",
+	}
+	ok, err := UpdateKey(original.Owner+"/"+original.Name, rebind)
+	if err != nil {
+		t.Fatalf("UpdateKey returned error: %v", err)
+	}
+	if !ok {
+		t.Fatal("UpdateKey reported no rows affected")
+	}
+
+	fetched, err := GetKey(original.Owner + "/" + original.Name)
+	if err != nil {
+		t.Fatalf("GetKey returned error: %v", err)
+	}
+	if fetched.Type != original.Type {
+		t.Errorf("FAIL TC-9E3A3A65: type was rebound from %q to %q", original.Type, fetched.Type)
+	}
+	if fetched.Organization != original.Organization {
+		t.Errorf("FAIL TC-9E3A3A65: organization was rebound from %q to %q", original.Organization, fetched.Organization)
+	}
+	if fetched.Application != original.Application {
+		t.Errorf("FAIL TC-9E3A3A65: application was rebound from %q to %q", original.Application, fetched.Application)
+	}
+	if fetched.User != original.User {
+		t.Errorf("FAIL TC-9E3A3A65: user was rebound from %q to %q", original.User, fetched.User)
+	}
+}
+
 // TC-6C65DEB6: UpdateKey with a partial body must not wipe fields the caller omitted.
 // Sending only owner+name+displayName must not zero out createdTime, expireTime, or state.
 func TestUpdateKeyDoesNotWipeOmittedFields(t *testing.T) {
