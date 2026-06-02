@@ -560,7 +560,8 @@
     "You must select a picture first": "Önce bir resim seçmelisiniz",
     "empty": "boş",
     "remove": "kaldır",
-    "{total} in total": "Toplam {total} adet"
+    "{total} in total": "Toplam {total} adet",
+    "Keys": "Keys"
   },
   "group": {
     "Edit Group": "Grubu Düzenle",
@@ -591,6 +592,15 @@
     "Used count": "Kullanım sayısı",
     "Used count - Tooltip": "Kullanım sayısı",
     "You need to first specify a default application for organization: ": "Önce organizasyon için varsayılan bir uygulama belirtmeniz gerekiyor: "
+  },
+  "key": {
+    "Access key": "Access key",
+    "Access key - Tooltip": "Access key for the API key",
+    "Access secret": "Access secret",
+    "Access secret - Tooltip": "Secret for the API key",
+    "Edit Key": "Edit Key",
+    "Inactive": "Inactive",
+    "New Key": "New Key"
   },
   "ldap": {
     "Admin - Tooltip": "LDAP sunucusu yöneticisinin CN veya ID'si",

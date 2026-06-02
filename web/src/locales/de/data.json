@@ -560,7 +560,8 @@
     "You must select a picture first": "Sie müssen zuerst ein Bild auswählen",
     "empty": "leere",
     "remove": "entfernen",
-    "{total} in total": "Insgesamt {total}"
+    "{total} in total": "Insgesamt {total}",
+    "Keys": "Keys"
   },
   "group": {
     "Edit Group": "Gruppe bearbeiten",
@@ -591,6 +592,15 @@
     "Used count": "Verwendete Anzahl",
     "Used count - Tooltip": "Verwendungsanzahl",
     "You need to first specify a default application for organization: ": "Sie müssen zuerst eine Standardanwendung für die Organisation angeben: "
+  },
+  "key": {
+    "Access key": "Access key",
+    "Access key - Tooltip": "Access key for the API key",
+    "Access secret": "Access secret",
+    "Access secret - Tooltip": "Secret for the API key",
+    "Edit Key": "Edit Key",
+    "Inactive": "Inactive",
+    "New Key": "New Key"
   },
   "ldap": {
     "Admin - Tooltip": "CN oder ID des LDAP-Serveradministrators",

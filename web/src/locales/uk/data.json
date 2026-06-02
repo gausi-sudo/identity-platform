@@ -560,7 +560,8 @@
     "You must select a picture first": "Спочатку ви повинні вибрати зображення",
     "empty": "порожній",
     "remove": "видалити",
-    "{total} in total": "загалом {total}"
+    "{total} in total": "загалом {total}",
+    "Keys": "Keys"
   },
   "group": {
     "Edit Group": "Редагувати групу",
@@ -591,6 +592,15 @@
     "Used count": "Кількість використаних",
     "Used count - Tooltip": "Кількість використань",
     "You need to first specify a default application for organization: ": "Спочатку потрібно вказати за замовчуванням програму для організації: "
+  },
+  "key": {
+    "Access key": "Access key",
+    "Access key - Tooltip": "Access key for the API key",
+    "Access secret": "Access secret",
+    "Access secret - Tooltip": "Secret for the API key",
+    "Edit Key": "Edit Key",
+    "Inactive": "Inactive",
+    "New Key": "New Key"
   },
   "ldap": {
     "Admin - Tooltip": "CN або ID адміністратора сервера LDAP",

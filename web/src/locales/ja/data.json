@@ -560,7 +560,8 @@
     "You must select a picture first": "まず画像を選択してください",
     "empty": "空",
     "remove": "削除",
-    "{total} in total": "総計{total}"
+    "{total} in total": "総計{total}",
+    "Keys": "Keys"
   },
   "group": {
     "Edit Group": "グループを編集",
@@ -591,6 +592,15 @@
     "Used count": "使用回数",
     "Used count - Tooltip": "使用回数",
     "You need to first specify a default application for organization: ": "組織のデフォルトアプリケーションを最初に指定する必要があります: "
+  },
+  "key": {
+    "Access key": "Access key",
+    "Access key - Tooltip": "Access key for the API key",
+    "Access secret": "Access secret",
+    "Access secret - Tooltip": "Secret for the API key",
+    "Edit Key": "Edit Key",
+    "Inactive": "Inactive",
+    "New Key": "New Key"
   },
   "ldap": {
     "Admin - Tooltip": "LDAPサーバー管理者のCNまたはID",

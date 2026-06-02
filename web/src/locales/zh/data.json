@@ -560,7 +560,8 @@
     "You must select a picture first": "您必须先选择一张图片",
     "empty": "无",
     "remove": "移除",
-    "{total} in total": "{total} 总计"
+    "{total} in total": "{total} 总计",
+    "Keys": "Keys"
   },
   "group": {
     "Edit Group": "编辑群组",
@@ -591,6 +592,15 @@
     "Used count": "已使用个数",
     "Used count - Tooltip": "该邀请码已使用次数",
     "You need to first specify a default application for organization: ": "你需要先为组织指定一个默认应用程序: "
+  },
+  "key": {
+    "Access key": "Access key",
+    "Access key - Tooltip": "Access key for the API key",
+    "Access secret": "Access secret",
+    "Access secret - Tooltip": "Secret for the API key",
+    "Edit Key": "Edit Key",
+    "Inactive": "Inactive",
+    "New Key": "New Key"
   },
   "ldap": {
     "Admin - Tooltip": "LDAP服务器管理员的CN或ID",
