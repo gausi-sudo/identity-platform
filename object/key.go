@@ -105,7 +105,9 @@ func UpdateKey(id string, key *Key) (bool, error) {
 
 	// Read-modify-write: only overwrite metadata fields; identity/scope fields are
 	// immutable after creation. Caller-supplied empty string means "leave unchanged".
-	existing.DisplayName = key.DisplayName
+	if key.DisplayName != "" {
+		existing.DisplayName = key.DisplayName
+	}
 	if key.ExpireTime != "" {
 		existing.ExpireTime = key.ExpireTime
 	}

@@ -127,18 +127,17 @@ func TestUpdateKeyDoesNotRebindIdentityFields(t *testing.T) {
 }
 
 // TC-6C65DEB6: UpdateKey with a partial body must not wipe fields the caller omitted.
-// Sending only owner+name+displayName must not zero out createdTime, expireTime, or state.
+// Sending only owner+name must not zero out displayName, createdTime, expireTime, or state.
 func TestUpdateKeyDoesNotWipeOmittedFields(t *testing.T) {
 	InitConfig()
 
 	original, cleanup := seedTestKey(t)
 	defer cleanup()
 
-	// Partial update: only send owner, name, and displayName — omit everything else.
+	// Partial update: only send owner and name — omit displayName and all other fields.
 	partial := &Key{
-		Owner:       original.Owner,
-		Name:        original.Name,
-		DisplayName: "only-display-name-sent",
+		Owner: original.Owner,
+		Name:  original.Name,
 	}
 	ok, err := UpdateKey(original.Owner+"/"+original.Name, partial)
 	if err != nil {
@@ -151,6 +150,9 @@ func TestUpdateKeyDoesNotWipeOmittedFields(t *testing.T) {
 	fetched, err := GetKey(original.Owner + "/" + original.Name)
 	if err != nil {
 		t.Fatalf("GetKey returned error: %v", err)
+	}
+	if fetched.DisplayName != original.DisplayName {
+		t.Errorf("FAIL TC-6C65DEB6: displayName wiped from %q to %q", original.DisplayName, fetched.DisplayName)
 	}
 	if fetched.CreatedTime == "" {
 		t.Error("FAIL TC-6C65DEB6: createdTime was wiped to empty — audit timestamp destroyed")
