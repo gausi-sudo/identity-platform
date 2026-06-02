@@ -101,6 +101,10 @@ func UpdateKey(id string, key *Key) (bool, error) {
 		return false, nil
 	}
 
+	// Lock owner/name to the URL id so a caller cannot relocate the key
+	// to a different org by supplying different PK values in the struct.
+	key.Owner = owner
+	key.Name = name
 	key.UpdatedTime = util.GetCurrentTime()
 
 	affected, err := ormer.Engine.ID(core.PK{owner, name}).AllCols().Update(key)

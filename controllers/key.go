@@ -89,6 +89,10 @@ func (c *ApiController) GetKey() {
 		return
 	}
 
+	if key != nil {
+		key.AccessSecret = "***"
+	}
+
 	c.ResponseOk(key)
 }
 
@@ -107,6 +111,18 @@ func (c *ApiController) UpdateKey() {
 	err := json.Unmarshal(c.Ctx.Input.RequestBody, &key)
 	if err != nil {
 		c.ResponseError(err.Error())
+		return
+	}
+
+	// Prevent cross-org writes: body owner must match the URL id owner so the
+	// authz filter's owner check is consistent with the row being mutated.
+	owner, _, err := util.GetOwnerAndNameFromIdWithError(id)
+	if err != nil {
+		c.ResponseError(err.Error())
+		return
+	}
+	if key.Owner != owner {
+		c.ResponseError("UpdateKey: owner in body does not match owner in id")
 		return
 	}
 
