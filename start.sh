@@ -19,20 +19,18 @@ mkdir -p data .run
 echo "→ building server (first run compiles dependencies; later runs are fast)…"
 go build -o .run/server .
 
-# Patch conf/app.conf to bind to loopback for this run, restore immediately after launch.
-cp conf/app.conf conf/app.conf.bak
-trap 'mv conf/app.conf.bak conf/app.conf' EXIT INT TERM
-# Append rather than sed -i: portable across BSD (macOS) and GNU (Linux) sed.
-# conf/app.conf is plain "key = value", so position relative to httpport is irrelevant.
-printf '\nhttpaddr = 127.0.0.1\n' >> conf/app.conf
+# Bind all interfaces (casdoor's default — conf/app.conf sets no httpaddr) so the
+# server is reachable from inside containers as well as locally. In particular,
+# niro's pentest runs in a container and reaches the server via the Docker bridge
+# gateway; a loopback bind (127.0.0.1) is invisible to containers on native Linux
+# Docker, where that gateway only reaches host services bound to 0.0.0.0. Locally
+# the server is still reachable at http://127.0.0.1:${PORT}.
 
 echo "→ starting on http://127.0.0.1:${PORT} (fresh database)…"
 .run/server > .run/server.log 2>&1 &
 echo $! > .run/server.pid
 
 if curl --retry 120 --retry-delay 1 --retry-connrefused -s -o /dev/null "http://127.0.0.1:${PORT}/api/get-account"; then
-  mv conf/app.conf.bak conf/app.conf
-  trap - EXIT INT TERM
   echo "→ ready: http://127.0.0.1:${PORT}  (API base: http://127.0.0.1:${PORT}/api)"
 else
   echo "✗ server did not become ready — see .run/server.log" >&2
