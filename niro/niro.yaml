@@ -102,3 +102,9 @@ version: 1
 #       - COPILOT_PROVIDER_TYPE          # Copilot CLI BYOK routing
 #       - COPILOT_PROVIDER_BASE_URL
 #       - COPILOT_PROVIDER_API_KEY
+
+# Pin DeepSeek model names directly (niro sends Override verbatim) so high/medium land on pro.
+models:
+  high: deepseek-v4-pro[1m]
+  medium: deepseek-v4-pro[1m]
+  low: deepseek-v4-flash
