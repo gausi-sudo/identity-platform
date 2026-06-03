@@ -125,3 +125,40 @@ func TestUpdateKeyCannotRelocateToOtherOrg(t *testing.T) {
 		t.Error("UpdateKey created a row at org-b/stolen; cross-org relocation succeeded — this is a bug")
 	}
 }
+
+// TestUpdateKeyDoesNotDestroySecret verifies that a benign update (e.g. renaming
+// displayName) does not overwrite the stored AccessSecret with the masked
+// sentinel "***" returned by GetMaskedKey/GetKey.
+// Regression test for TC-660C532A.
+func TestUpdateKeyDoesNotDestroySecret(t *testing.T) {
+	createDatabase = false
+	InitConfig()
+	seedTestKeys(t)
+
+	// Simulate the normal UI edit flow: GET masked key → mutate one field → POST update.
+	maskedKey, err := GetKey("org-a/key-a")
+	if err != nil {
+		t.Fatalf("GetKey returned error: %v", err)
+	}
+	maskedKey = GetMaskedKey(maskedKey) // AccessSecret is now "***"
+	maskedKey.DisplayName = "Renamed"
+	_, err = UpdateKey("org-a/key-a", maskedKey)
+	if err != nil {
+		t.Fatalf("UpdateKey returned error: %v", err)
+	}
+
+	// The real AccessSecret must survive intact in the database.
+	raw, err := getKey("org-a", "key-a")
+	if err != nil {
+		t.Fatalf("getKey returned error: %v", err)
+	}
+	if raw == nil {
+		t.Fatal("key disappeared after update")
+	}
+	if raw.AccessSecret == "***" {
+		t.Error("UpdateKey overwrote the real AccessSecret with the masked sentinel \"***\"")
+	}
+	if raw.AccessSecret != "secret-org-a" {
+		t.Errorf("UpdateKey changed AccessSecret to %q; want original value %q", raw.AccessSecret, "secret-org-a")
+	}
+}
