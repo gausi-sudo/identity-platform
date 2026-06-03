@@ -90,6 +90,15 @@ func GetKey(id string) (*Key, error) {
 	return getKey(owner, name)
 }
 
+func GetMaskedKey(key *Key) *Key {
+	if key == nil {
+		return nil
+	}
+	masked := *key
+	masked.AccessSecret = "***"
+	return &masked
+}
+
 func UpdateKey(id string, key *Key) (bool, error) {
 	owner, name, err := util.GetOwnerAndNameFromIdWithError(id)
 	if err != nil {
@@ -101,9 +110,16 @@ func UpdateKey(id string, key *Key) (bool, error) {
 		return false, nil
 	}
 
+	// Pin owner/name to the id target; reject body attempts to relocate to a different org.
+	if key.Owner != owner || key.Name != name {
+		return false, fmt.Errorf("owner/name in body must match id query parameter")
+	}
+
 	key.UpdatedTime = util.GetCurrentTime()
 
-	affected, err := ormer.Engine.ID(core.PK{owner, name}).AllCols().Update(key)
+	affected, err := ormer.Engine.ID(core.PK{owner, name}).
+		Cols("updated_time", "display_name", "type", "organization", "application", "user", "access_key", "access_secret", "expire_time", "state").
+		Update(key)
 	if err != nil {
 		return false, err
 	}
