@@ -22,7 +22,9 @@ go build -o .run/server .
 # Patch conf/app.conf to bind to loopback for this run, restore immediately after launch.
 cp conf/app.conf conf/app.conf.bak
 trap 'mv conf/app.conf.bak conf/app.conf' EXIT INT TERM
-sed -i '' 's/^httpport/httpaddr = 127.0.0.1\nhttpport/' conf/app.conf
+# Append rather than sed -i: portable across BSD (macOS) and GNU (Linux) sed.
+# conf/app.conf is plain "key = value", so position relative to httpport is irrelevant.
+printf '\nhttpaddr = 127.0.0.1\n' >> conf/app.conf
 
 echo "→ starting on http://127.0.0.1:${PORT} (fresh database)…"
 .run/server > .run/server.log 2>&1 &
