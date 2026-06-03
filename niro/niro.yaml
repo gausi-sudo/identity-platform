@@ -85,20 +85,8 @@ version: 1
 #                                # an interactive reflection token. CI /
 #                                # automation workflows set this to true.
 
-# security:
-#   env:
-#     # Customer-declared allowlist of host env-var names niro is permitted
-#     # to read. Empty list = niro reads NOTHING from the environment. No
-#     # defaults; every name must be listed explicitly. Each read attempt
-#     # lands in niro-security.jsonl as env_resolved / env_blocked /
-#     # env_not_set so the customer has a tamper-evident audit trail.
-#     #
-#     # POSIX env-var name shape required ([A-Z_][A-Z0-9_]*); no glob/prefix.
-#     # Common entries when running niro:
-#     access:
-#       - GH_TOKEN                       # GitHub auth for forge ops
-#       - GITHUB_TOKEN
-#       - ANTHROPIC_API_KEY              # direct Anthropic BYOK
-#       - COPILOT_PROVIDER_TYPE          # Copilot CLI BYOK routing
-#       - COPILOT_PROVIDER_BASE_URL
-#       - COPILOT_PROVIDER_API_KEY
+security:
+  env:
+    access:
+      - GH_TOKEN
+      - ANTHROPIC_API_KEY

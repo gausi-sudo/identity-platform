@@ -102,12 +102,15 @@ func UpdateKey(id string, key *Key) (bool, error) {
 		return false, nil
 	}
 
-	// Lock PK fields and preserve immutable credentials
+	// Lock PK fields, credentials, and tenant-binding fields
 	key.Owner = owner
 	key.Name = name
 	key.CreatedTime = oldKey.CreatedTime
 	key.AccessKey = oldKey.AccessKey
 	key.AccessSecret = oldKey.AccessSecret
+	key.Organization = oldKey.Organization
+	key.Application = oldKey.Application
+	key.User = oldKey.User
 	key.UpdatedTime = util.GetCurrentTime()
 
 	affected, err := ormer.Engine.ID(core.PK{owner, name}).AllCols().Update(key)
