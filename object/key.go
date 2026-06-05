@@ -90,6 +90,18 @@ func GetKey(id string) (*Key, error) {
 	return getKey(owner, name)
 }
 
+// GetMaskedKey returns the key with AccessSecret redacted to "***".
+func GetMaskedKey(id string) (*Key, error) {
+	key, err := GetKey(id)
+	if err != nil {
+		return nil, err
+	}
+	if key != nil {
+		key.AccessSecret = "***"
+	}
+	return key, nil
+}
+
 func UpdateKey(id string, key *Key) (bool, error) {
 	owner, name, err := util.GetOwnerAndNameFromIdWithError(id)
 	if err != nil {
@@ -101,6 +113,10 @@ func UpdateKey(id string, key *Key) (bool, error) {
 		return false, nil
 	}
 
+	// Pin the PK from the id so AllCols().Update cannot relocate the row to
+	// a different org/name if the caller supplies a mismatched body.
+	key.Owner = owner
+	key.Name = name
 	key.UpdatedTime = util.GetCurrentTime()
 
 	affected, err := ormer.Engine.ID(core.PK{owner, name}).AllCols().Update(key)

@@ -83,7 +83,7 @@ func (c *ApiController) GetKeys() {
 func (c *ApiController) GetKey() {
 	id := c.Ctx.Input.Query("id")
 
-	key, err := object.GetKey(id)
+	key, err := object.GetMaskedKey(id)
 	if err != nil {
 		c.ResponseError(err.Error())
 		return
