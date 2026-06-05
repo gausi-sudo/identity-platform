@@ -88,7 +88,7 @@ func TestUpdateKeyDoesNotOverwriteCredentials(t *testing.T) {
 		t.Fatal("GetKey returned nil after update")
 	}
 
-	// Immutable fields must never be touched by an update call.
+	// Credential/provenance fields must never be touched by an update call.
 	if got.AccessKey != original.AccessKey {
 		t.Errorf("accessKey overwritten: want %q, got %q", original.AccessKey, got.AccessKey)
 	}
@@ -97,5 +97,13 @@ func TestUpdateKeyDoesNotOverwriteCredentials(t *testing.T) {
 	}
 	if got.CreatedTime != original.CreatedTime {
 		t.Errorf("createdTime silently wiped: want %q, got %q", original.CreatedTime, got.CreatedTime)
+	}
+
+	// Mutable metadata fields omitted from the update body must retain stored values.
+	if got.DisplayName != original.DisplayName {
+		t.Errorf("displayName silently wiped: want %q, got %q", original.DisplayName, got.DisplayName)
+	}
+	if got.Application != original.Application {
+		t.Errorf("application silently wiped: want %q, got %q", original.Application, got.Application)
 	}
 }

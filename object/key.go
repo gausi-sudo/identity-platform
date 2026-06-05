@@ -95,18 +95,46 @@ func UpdateKey(id string, key *Key) (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	if k, err := getKey(owner, name); err != nil {
+	existing, err := getKey(owner, name)
+	if err != nil {
 		return false, err
-	} else if k == nil {
+	}
+	if existing == nil {
 		return false, nil
 	}
 
-	key.UpdatedTime = util.GetCurrentTime()
+	// Merge only the mutable, non-credential fields from the request onto the
+	// stored record. Omitted (empty) fields retain their stored values so a
+	// partial request body never silently wipes metadata.
+	// access_key, access_secret, created_time, owner, and name are never
+	// touched by this path.
+	existing.UpdatedTime = util.GetCurrentTime()
+	if key.DisplayName != "" {
+		existing.DisplayName = key.DisplayName
+	}
+	if key.Type != "" {
+		existing.Type = key.Type
+	}
+	if key.Organization != "" {
+		existing.Organization = key.Organization
+	}
+	if key.Application != "" {
+		existing.Application = key.Application
+	}
+	if key.User != "" {
+		existing.User = key.User
+	}
+	if key.ExpireTime != "" {
+		existing.ExpireTime = key.ExpireTime
+	}
+	if key.State != "" {
+		existing.State = key.State
+	}
 
 	affected, err := ormer.Engine.ID(core.PK{owner, name}).
 		Cols("updated_time", "display_name", "type", "organization", "application",
 			"user", "expire_time", "state").
-		Update(key)
+		Update(existing)
 	if err != nil {
 		return false, err
 	}
