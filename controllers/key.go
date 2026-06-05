@@ -114,6 +114,16 @@ func (c *ApiController) UpdateKey() {
 		return
 	}
 
+	idOwner, idName, err := util.GetOwnerAndNameFromIdWithError(id)
+	if err != nil {
+		c.ResponseError(err.Error())
+		return
+	}
+	if key.Owner != idOwner || key.Name != idName {
+		c.ResponseError("id and body owner/name mismatch")
+		return
+	}
+
 	c.Data["json"] = wrapActionResponse(object.UpdateKey(id, &key))
 	c.ServeJSON()
 }
