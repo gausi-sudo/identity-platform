@@ -95,15 +95,30 @@ func UpdateKey(id string, key *Key) (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	if k, err := getKey(owner, name); err != nil {
+	existing, err := getKey(owner, name)
+	if err != nil {
 		return false, err
-	} else if k == nil {
+	}
+	if existing == nil {
 		return false, nil
 	}
 
+	// Carry forward immutable fields so they can never be overwritten by the caller.
+	key.Owner = existing.Owner
+	key.Name = existing.Name
+	key.CreatedTime = existing.CreatedTime
+	key.Type = existing.Type
+	key.Organization = existing.Organization
+	key.Application = existing.Application
+	key.User = existing.User
+	key.AccessKey = existing.AccessKey
+	key.AccessSecret = existing.AccessSecret
+
 	key.UpdatedTime = util.GetCurrentTime()
 
-	affected, err := ormer.Engine.ID(core.PK{owner, name}).AllCols().Update(key)
+	affected, err := ormer.Engine.ID(core.PK{owner, name}).
+		Cols("updated_time", "display_name", "expire_time", "state").
+		Update(key)
 	if err != nil {
 		return false, err
 	}
