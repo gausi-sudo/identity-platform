@@ -35,6 +35,7 @@ export const NavItemTree = ({disabled, checkedKeys, defaultExpandedKeys, onCheck
             {title: i18next.t("application:Providers"), key: "/providers"},
             {title: i18next.t("general:Resources"), key: "/resources"},
             {title: i18next.t("general:Certs"), key: "/certs"},
+            {title: i18next.t("general:Keys"), key: "/keys"},
           ],
         },
         {
