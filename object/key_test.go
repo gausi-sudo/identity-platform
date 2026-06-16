@@ -97,3 +97,80 @@ func TestUpdateKeyDoesNotOverwriteImmutableFields(t *testing.T) {
 			got.CreatedTime, "2026-01-01T00:00:00Z")
 	}
 }
+
+// TestUpdateKeyDoesNotRetargetOrgOrUser is a regression test for TC-13666EEB.
+// UpdateKey must not allow a caller to move a key into a different organization,
+// application, or user — these binding fields are identity attributes set at
+// creation and must be immutable via the update path.
+// This test FAILS on unfixed code (organization/application/user in Cols whitelist)
+// and PASSES after the fix (those fields removed from Cols).
+func TestUpdateKeyDoesNotRetargetOrgOrUser(t *testing.T) {
+	InitConfig()
+
+	owner := "built-in"
+	name := "regression-tc-13666eeb"
+
+	_, _ = ormer.Engine.Delete(&Key{Owner: owner, Name: name})
+
+	original := &Key{
+		Owner:        owner,
+		Name:         name,
+		DisplayName:  "Original Display",
+		Organization: "built-in",
+		Application:  "app-built-in",
+		User:         "alice",
+		State:        "Active",
+	}
+	if _, err := ormer.Engine.Insert(original); err != nil {
+		t.Fatalf("insert test key: %v", err)
+	}
+	t.Cleanup(func() {
+		_, _ = ormer.Engine.Delete(&Key{Owner: owner, Name: name})
+	})
+
+	// Send an update body with attacker-chosen org/application/user targets.
+	update := &Key{
+		Owner:        owner,
+		Name:         name,
+		DisplayName:  "Updated Display",
+		Organization: "attacker-org",
+		Application:  "attacker-app",
+		User:         "admin",
+		State:        "Inactive",
+	}
+
+	ok, err := UpdateKey(owner+"/"+name, update)
+	if err != nil {
+		t.Fatalf("UpdateKey error: %v", err)
+	}
+	if !ok {
+		t.Fatal("UpdateKey returned false (key not found)")
+	}
+
+	got, err := getKey(owner, name)
+	if err != nil {
+		t.Fatalf("getKey after update: %v", err)
+	}
+	if got == nil {
+		t.Fatal("key disappeared after update")
+	}
+
+	// Mutable fields should change.
+	if got.DisplayName != "Updated Display" {
+		t.Errorf("displayName: got %q, want %q", got.DisplayName, "Updated Display")
+	}
+
+	// Binding fields must NOT change.
+	if got.Organization != "built-in" {
+		t.Errorf("TC-13666EEB: organization was retargeted: got %q, want %q (cross-org escalation bug)",
+			got.Organization, "built-in")
+	}
+	if got.Application != "app-built-in" {
+		t.Errorf("TC-13666EEB: application was retargeted: got %q, want %q",
+			got.Application, "app-built-in")
+	}
+	if got.User != "alice" {
+		t.Errorf("TC-13666EEB: user was retargeted: got %q, want %q",
+			got.User, "alice")
+	}
+}

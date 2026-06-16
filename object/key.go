@@ -105,8 +105,7 @@ func UpdateKey(id string, key *Key) (bool, error) {
 
 	affected, err := ormer.Engine.
 		ID(core.PK{owner, name}).
-		Cols("display_name", "type", "organization", "application", "user",
-			"expire_time", "state", "updated_time").
+		Cols("display_name", "type", "expire_time", "state", "updated_time").
 		Update(key)
 	if err != nil {
 		return false, err
