@@ -16,6 +16,7 @@ package controllers
 
 import (
 	"encoding/json"
+	"strings"
 
 	"github.com/beego/beego/v2/core/utils/pagination"
 	"github.com/casdoor/casdoor/object"
@@ -89,6 +90,10 @@ func (c *ApiController) GetKey() {
 		return
 	}
 
+	if key != nil {
+		key.AccessSecret = "***"
+	}
+
 	c.ResponseOk(key)
 }
 
@@ -107,6 +112,12 @@ func (c *ApiController) UpdateKey() {
 	err := json.Unmarshal(c.Ctx.Input.RequestBody, &key)
 	if err != nil {
 		c.ResponseError(err.Error())
+		return
+	}
+
+	parts := strings.SplitN(id, "/", 2)
+	if len(parts) != 2 || key.Owner != parts[0] || key.Name != parts[1] {
+		c.ResponseError("body owner/name must match URL id")
 		return
 	}
 
