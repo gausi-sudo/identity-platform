@@ -110,6 +110,11 @@ func (c *ApiController) UpdateKey() {
 		return
 	}
 
+	if util.GetId(key.Owner, key.Name) != id {
+		c.ResponseError("body owner/name must match the id query parameter")
+		return
+	}
+
 	c.Data["json"] = wrapActionResponse(object.UpdateKey(id, &key))
 	c.ServeJSON()
 }

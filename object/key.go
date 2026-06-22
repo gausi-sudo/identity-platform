@@ -103,7 +103,9 @@ func UpdateKey(id string, key *Key) (bool, error) {
 
 	key.UpdatedTime = util.GetCurrentTime()
 
-	affected, err := ormer.Engine.ID(core.PK{owner, name}).AllCols().Update(key)
+	affected, err := ormer.Engine.ID(core.PK{owner, name}).
+		Cols("updated_time", "display_name", "type", "organization", "application", "user", "expire_time", "state").
+		Update(key)
 	if err != nil {
 		return false, err
 	}
