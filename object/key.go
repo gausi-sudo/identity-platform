@@ -103,7 +103,7 @@ func UpdateKey(id string, key *Key) (bool, error) {
 
 	key.UpdatedTime = util.GetCurrentTime()
 
-	affected, err := ormer.Engine.ID(core.PK{owner, name}).AllCols().Update(key)
+	affected, err := ormer.Engine.ID(core.PK{owner, name}).Omit("access_key", "access_secret").Update(key)
 	if err != nil {
 		return false, err
 	}
